@@ -16,22 +16,23 @@ public:
 
 	~AStarNode()
 	{
-		if (_parent) {
+		/*if (_parent != nullptr) {
 			delete _parent;
-		}
-		_parent = nullptr;
+		}*/
 	}
 
 	inline AStarNode& GetParent() const { return *_parent; }
-	inline T& GetState() const { return _state; }
+	inline T& GetState() { return _state; }
 	inline float GetHeuristic() const { return _heuristic; }
 	inline float GetCost() const { return _cost; }
 	inline float GetTotalCost() const { return _total; }
 
-	inline float GetCostTo(AStarNode* node) const
+	inline float GetCostTo(AStarNode* node)
 	{
 		return _state.GetCostTo(node->_state);
 	}
+
+	inline void SetState(T& state) { _state = state; }
 
 	inline void SetParent(AStarNode* parent) { _parent = parent; }
 	inline void SetCost(float val) 
@@ -50,14 +51,18 @@ public:
 
 	inline float EstimatedDistanceTo(AStarNode* node)
 	{
-		return state.EstimatedDistanceTo(node->_state);
+		return _state.EstimatedDistanceTo(node->_state);
 	}
 
-	template<typename State>
-	static AStarNode<State>* CreateNode();
+	static AStarNode* CreateNode()
+	{
+		return new AStarNode;
+	}
 
-	template<typename State>
-	static AStarNode<State>* CreateNode(AStarNode<State>* parent, float cost, float heuristic, const State& state);
+	static AStarNode* CreateNode(AStarNode* parent, float cost, float heuristic, const T& state)
+	{
+		return new AStarNode(parent, cost, heuristic, state);
+	}
 
 	bool operator<(const AStarNode& rhs)
 	{
@@ -73,15 +78,3 @@ private:
 	AStarNode* _parent;
 	float _total, _cost, _heuristic;
 };
-
-template<typename State>
-AStarNode<State>* CreateNode()
-{
-	return new AStarNode<State>;
-}
-
-template<typename State>
-AStarNode<State>* CreateNode(AStarNode<State>* parent, float cost, float heuristic, const State& state)
-{
-	return new AStarNode<State>(parent, cost, heuristic, state);
-}

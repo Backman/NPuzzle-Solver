@@ -10,13 +10,15 @@ class AStarSolver
 {
 public:
 	typedef AStarNode<State> Node;
+	typedef AStarNode<State>* NodePtr;
 
 	AStarSolver() :
-		_current(nullptr), _start(nullptr), _goal(nullptr)
-	{ }
+		_start(nullptr), _goal(nullptr)
+	{
+	}
 
-	AStarSolver(Node* start, Node* goal) :
-		_current(nullptr), _start(start), _goal(goal)
+	AStarSolver(NodePtr start, NodePtr goal) :
+		_start(start), _goal(goal)
 	{ }
 
 	~AStarSolver()
@@ -24,9 +26,9 @@ public:
 		DeleteAllNodes();
 	}
 
-	std::vector<Node*>& Expand(Node* node)
+	void Expand(std::vector<NodePtr>* expandList, NodePtr node)
 	{
-		return std::vector<Node*>();
+		node->GetState().Expand(expandList, &node->GetState());
 	}
 
 	void Solve()
@@ -34,26 +36,29 @@ public:
 		if (!_start || !_goal) {
 			return;
 		}
-		
+		NodePtr current = nullptr;
 		_steps = 0;
 		_openList.push_back(_start);
 		while (!_openList.empty()) {
 			++_steps;
-			_current = _openList.back();
+			current = _openList.back();
 			_openList.pop_back();
 
-			if (_current->GetState() == _goal.GetState()) {
+			if (*current == *_goal) {
+				_goal->SetParent(&current->GetParent());
+				_goal->SetCost(current->GetCost());
+
 				return;
 			}
 			
 			_expandList.clear();
-			_expandList = Expand(_current);
+			Expand(&_expandList, current);
 
 			for (int i = 0; i < _expandList.size(); ++i) {
-				Node* child = _expandList[i];
-				float newCost = _current->GetCost() + _current->GetCostTo(child);
+				NodePtr child = _expandList[i];
+				float newCost = current->GetCost() + current->GetCostTo(child);
 
-				std::vector<Node*>::iterator openListIt;
+				std::vector<NodePtr>::iterator openListIt;
 				for (openListIt = _openList.begin(); openListIt != _openList.end(); ++openListIt) {
 					if (child == (*openListIt)) {
 						break;
@@ -67,7 +72,7 @@ public:
 					}
 				}
 
-				std::vector<Node*>::iterator closedListIt;
+				std::vector<NodePtr>::iterator closedListIt;
 				for (closedListIt = _closedList.begin(); closedListIt != _closedList.end(); ++closedListIt) {
 					if (child == (*closedListIt)) {
 						break;
@@ -81,11 +86,11 @@ public:
 					}
 				}
 
-				if (openListNode != nullptr) {
+				if (openListIt != _openList.end()) {
 					DeleteNode((*openListIt));
 					_openList.erase(openListIt);
 
-					std::sort(_openList.begin(), _openList.end(), NodeCompare);
+					std::sort(_openList.begin(), _openList.end(), comparer);
 				}
 
 				if (closedListIt != _closedList.end()) {
@@ -94,17 +99,17 @@ public:
 					
 				}
 
-				child->SetParent(_current);
+				child->SetParent(current);
 				child->SetCost(newCost);
 				child->SetHeuristic(child->EstimatedDistanceTo(_goal));
 				child->UpdateTotalCost();
 
 				_openList.push_back(child);
 
-				std::sort(_openList.begin(), _openList.end(), NodeCompare);
+				std::sort(_openList.begin(), _openList.end(), comparer);
 			}
 
-			_closedList.push_back(_current);
+			_closedList.push_back(current);
 		}
 	}
 
@@ -113,10 +118,28 @@ public:
 		return x.GetTotalCost() > y.GetTotalCost();
 	}
 
+	struct NodeComparer
+	{
+		bool operator()(const Node& a, const Node& b) const
+		{
+			return a.GetTotalCost() > b.GetTotalCost();
+		}
+		bool operator()(const Node* a, const Node* b) const
+		{
+			return a->GetTotalCost() > b->GetTotalCost();
+		}
+	} comparer;
+
+	void DeleteSolverNodes() {
+		DeleteNode(_start);
+		DeleteNode(_goal);
+	}
+
 	void DeleteAllNodes() 
 	{
 		while (!_openList.empty()) {
-			DeleteNode(_openList.pop());
+			DeleteNode(_openList.back());
+			_openList.pop_back();
 		}
 
 		while (!_closedList.empty()) {
@@ -126,11 +149,10 @@ public:
 
 		DeleteNode(_start);
 		DeleteNode(_goal);
-		DeleteNode(_current);
 	}
 
-	void DeleteNode(Node* node) {
-		if (node != nullptr) {
+	void DeleteNode(NodePtr node) {
+		if (node != NULL) {
 			delete node;
 			node = nullptr;
 		}
@@ -139,11 +161,11 @@ public:
 	int GetSteps() const { return _steps; }
 
 private:
-	std::vector<Node*> _openList;
-	std::vector<Node*> _closedList;
-	std::vector<Node*> _expandList;
+	std::vector<NodePtr> _openList;
+	std::vector<NodePtr> _closedList;
+	std::vector<NodePtr> _expandList;
 
-	Node* _start, _goal, _current;
+	NodePtr _start, _goal, _current;
 
 	int _steps;
 };
